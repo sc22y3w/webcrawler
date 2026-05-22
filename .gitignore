@@ -216,3 +216,6 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+.github/agents/webcrawler-search-engineer.agent.md
+process.md
+tests/test_main.py
