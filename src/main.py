@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import argparse
 import sys
+import shlex
+from typing import Any
 from pathlib import Path
 
 from src.crawler import DEFAULT_START_URL, crawl
-from src.indexer import index_pages, load_index, save_index
+from src.indexer import index_pages, load_index, save_index, tokenize
 from src.search import flatten_results, search
 
 
@@ -60,15 +62,44 @@ def load_command(args: argparse.Namespace) -> dict:
     return index
 
 
+def _print_postings(term: str, postings: dict[str, dict[str, Any]]) -> None:
+    print(term)
+    for url in sorted(postings):
+        entry = postings[url]
+        print(f"  {url}: frequency={entry['frequency']}, positions={entry['positions']}")
+
+
+def print_index_command(args: argparse.Namespace) -> dict[str, Any] | None:
+    index = load_index(args.index)
+    terms = tokenize(args.word)
+    if not terms:
+        print(f"No printable index term found for {args.word!r}.")
+        return None
+
+    term = terms[0]
+    postings = index.get("postings", {}).get(term)
+    if not postings:
+        print(f"No inverted index entry found for {term}.")
+        return None
+
+    _print_postings(term, postings)
+    return postings
+
+
 def interactive_cli() -> None:
     print("Webcrawler CLI")
     loaded_index: dict | None = None
     while True:
         try:
-            command = input("Command (build/load/search/quit): ").strip().lower()
+            raw_command = input("Command (build/load/search/print <word>/quit): ").strip()
         except KeyboardInterrupt:
             print()
             return
+        if not raw_command:
+            continue
+
+        parts = shlex.split(raw_command)
+        command = parts[0].lower()
         if command in {"quit", "exit", "q"}:
             return
         if command == "build":
@@ -105,7 +136,29 @@ def interactive_cli() -> None:
                 print(f"{group['label']}: {', '.join(group['pages'])}")
             print(f"Matched {len(ordered_urls)} pages.")
             continue
-        print("Please enter build, search, or quit.")
+        if command == "print":
+            word = parts[1] if len(parts) > 1 else ""
+            if not word:
+                print("Usage: print <word>")
+                continue
+            if loaded_index is None:
+                try:
+                    loaded_index = load_index(DEFAULT_OUTPUT_PATH)
+                except FileNotFoundError:
+                    print(f"No index found at {DEFAULT_OUTPUT_PATH}. Run build or load first.")
+                    continue
+            terms = tokenize(word)
+            if not terms:
+                print(f"No printable index term found for {word!r}.")
+                continue
+            term = terms[0]
+            postings = loaded_index.get("postings", {}).get(term)
+            if not postings:
+                print(f"No inverted index entry found for {term}.")
+                continue
+            _print_postings(term, postings)
+            continue
+        print("Please enter build, load, search, print <word>, or quit.")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -127,6 +180,11 @@ def build_parser() -> argparse.ArgumentParser:
     load_parser = subparsers.add_parser("load", help="Load a saved index.")
     load_parser.add_argument("--index", default=DEFAULT_OUTPUT_PATH)
     load_parser.set_defaults(func=load_command)
+
+    print_parser = subparsers.add_parser("print", help="Print the inverted index entry for a word.")
+    print_parser.add_argument("--index", default=DEFAULT_OUTPUT_PATH)
+    print_parser.add_argument("word")
+    print_parser.set_defaults(func=print_index_command)
 
     return parser
 
