@@ -8,10 +8,26 @@ from pathlib import Path
 
 from src.crawler import DEFAULT_START_URL, crawl
 from src.indexer import index_pages, load_index, save_index, tokenize
-from src.search import flatten_results, search
+from src.search import flatten_results, ranked_search, search, suggest_queries
 
 
 DEFAULT_OUTPUT_PATH = Path("data") / "index.json"
+
+
+def _build_find_args_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument("--rank", choices=("grouped", "tfidf"), default="grouped")
+    parser.add_argument("--proximity-window", type=int, default=3)
+    parser.add_argument("--limit", type=int, default=None)
+    parser.add_argument("query", nargs=argparse.REMAINDER)
+    return parser
+
+
+def _build_suggest_args_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument("--limit", type=int, default=5)
+    parser.add_argument("prefix", nargs=argparse.REMAINDER)
+    return parser
 
 
 def _render_build_progress(crawled_pages: int, max_pages: int | None, current_url: str) -> None:
@@ -46,13 +62,33 @@ def build_command(args: argparse.Namespace) -> Path | None:
     return output_path
 
 
-def search_command(args: argparse.Namespace) -> list[str]:
+def find_command(args: argparse.Namespace) -> list[str]:
     index = load_index(args.index)
-    groups = search(index, args.query)
-    ordered_urls = flatten_results(groups)
-    for group in groups:
-        print(f"{group['label']}: {', '.join(group['pages'])}")
-    return ordered_urls
+    rank = getattr(args, "rank", "grouped")
+    if rank == "grouped":
+        results = search(index, args.query)
+        ordered_urls = flatten_results(results)
+        for group in results:
+            print(f"{group['label']}: {', '.join(group['pages'])}")
+        return ordered_urls
+
+    results = search(
+        index,
+        args.query,
+        ranking=rank,
+        proximity_window=getattr(args, "proximity_window", 3),
+        limit=getattr(args, "limit", None),
+    )
+
+    for position, result in enumerate(results, start=1):
+        title = result.get("title", "")
+        title_suffix = f" - {title}" if title else ""
+        print(f"{position}. {result['url']} (score={result['score']:.3f}){title_suffix}")
+        if result.get("matched_phrases"):
+            print(f"   phrases: {', '.join(result['matched_phrases'])}")
+        if result.get("matched_terms"):
+            print(f"   terms: {', '.join(result['matched_terms'])}")
+    return [result["url"] for result in results]
 
 
 def load_command(args: argparse.Namespace) -> dict:
@@ -60,6 +96,15 @@ def load_command(args: argparse.Namespace) -> dict:
     page_count = len(index.get("pages", []))
     print(f"Loaded index with {page_count} pages from {args.index}")
     return index
+
+
+def suggest_command(args: argparse.Namespace) -> list[str]:
+    index = load_index(args.index)
+    prefix = " ".join(args.prefix).strip()
+    suggestions = suggest_queries(index, prefix, limit=args.limit)
+    for suggestion in suggestions:
+        print(suggestion)
+    return suggestions
 
 
 def _print_postings(term: str, postings: dict[str, dict[str, Any]]) -> None:
@@ -91,7 +136,7 @@ def interactive_cli() -> None:
     loaded_index: dict | None = None
     while True:
         try:
-            raw_command = input("Command (build/load/search/print <word>/quit): ").strip()
+            raw_command = input("Command (build/load/find <query>/print <word>/quit): ").strip()
         except KeyboardInterrupt:
             print()
             return
@@ -118,11 +163,15 @@ def interactive_cli() -> None:
             except FileNotFoundError:
                 print(f"No index found at {DEFAULT_OUTPUT_PATH}. Run build first.")
             continue
-        if command == "search":
+        if command == "find":
+            parser = _build_find_args_parser()
             try:
-                query = input("Search query: ").strip()
-            except KeyboardInterrupt:
-                print()
+                parsed = parser.parse_args(parts[1:])
+            except SystemExit:
+                continue
+            query = " ".join(parsed.query).strip()
+            if not query:
+                print("Usage: find <query>")
                 continue
             if loaded_index is None:
                 try:
@@ -130,11 +179,46 @@ def interactive_cli() -> None:
                 except FileNotFoundError:
                     print(f"No index found at {DEFAULT_OUTPUT_PATH}. Run build or load first.")
                     continue
-            groups = search(loaded_index, query)
-            ordered_urls = flatten_results(groups)
-            for group in groups:
-                print(f"{group['label']}: {', '.join(group['pages'])}")
-            print(f"Matched {len(ordered_urls)} pages.")
+            if parsed.rank == "grouped":
+                results = search(loaded_index, query)
+                ordered_urls = flatten_results(results)
+                for group in results:
+                    print(f"{group['label']}: {', '.join(group['pages'])}")
+                print(f"Matched {len(ordered_urls)} pages.")
+            else:
+                results = search(
+                    loaded_index,
+                    query,
+                    ranking=parsed.rank,
+                    proximity_window=parsed.proximity_window,
+                    limit=parsed.limit,
+                )
+                ordered_urls = [result["url"] for result in results]
+                for position, result in enumerate(results, start=1):
+                    title = result.get("title", "")
+                    title_suffix = f" - {title}" if title else ""
+                    print(f"{position}. {result['url']} (score={result['score']:.3f}){title_suffix}")
+                print(f"Matched {len(ordered_urls)} pages with TF-IDF ranking.")
+            continue
+        if command == "suggest":
+            parser = _build_suggest_args_parser()
+            try:
+                parsed = parser.parse_args(parts[1:])
+            except SystemExit:
+                continue
+            prefix = " ".join(parsed.prefix).strip()
+            if not prefix:
+                print("Usage: suggest <prefix>")
+                continue
+            if loaded_index is None:
+                try:
+                    loaded_index = load_index(DEFAULT_OUTPUT_PATH)
+                except FileNotFoundError:
+                    print(f"No index found at {DEFAULT_OUTPUT_PATH}. Run build or load first.")
+                    continue
+            suggestions = suggest_queries(loaded_index, prefix, limit=parsed.limit)
+            for suggestion in suggestions:
+                print(suggestion)
             continue
         if command == "print":
             word = parts[1] if len(parts) > 1 else ""
@@ -158,7 +242,7 @@ def interactive_cli() -> None:
                 continue
             _print_postings(term, postings)
             continue
-        print("Please enter build, load, search, print <word>, or quit.")
+        print("Please enter build, load, find <query>, print <word>, or quit.")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -172,14 +256,23 @@ def build_parser() -> argparse.ArgumentParser:
     build_parser.add_argument("--politeness-window", type=float, default=6.0)
     build_parser.set_defaults(func=build_command)
 
-    search_parser = subparsers.add_parser("search", help="Search a saved index.")
-    search_parser.add_argument("--index", default=DEFAULT_OUTPUT_PATH)
-    search_parser.add_argument("query")
-    search_parser.set_defaults(func=search_command)
+    find_parser = subparsers.add_parser("find", help="Find pages matching a query in a saved index.")
+    find_parser.add_argument("--index", default=DEFAULT_OUTPUT_PATH)
+    find_parser.add_argument("--rank", choices=("grouped", "tfidf"), default="grouped")
+    find_parser.add_argument("--proximity-window", type=int, default=3)
+    find_parser.add_argument("--limit", type=int, default=None)
+    find_parser.add_argument("query")
+    find_parser.set_defaults(func=find_command)
 
     load_parser = subparsers.add_parser("load", help="Load a saved index.")
     load_parser.add_argument("--index", default=DEFAULT_OUTPUT_PATH)
     load_parser.set_defaults(func=load_command)
+
+    suggest_parser = subparsers.add_parser("suggest", help="Suggest query completions from the saved index.")
+    suggest_parser.add_argument("--index", default=DEFAULT_OUTPUT_PATH)
+    suggest_parser.add_argument("--limit", type=int, default=5)
+    suggest_parser.add_argument("prefix", nargs=argparse.REMAINDER)
+    suggest_parser.set_defaults(func=suggest_command)
 
     print_parser = subparsers.add_parser("print", help="Print the inverted index entry for a word.")
     print_parser.add_argument("--index", default=DEFAULT_OUTPUT_PATH)

@@ -1,0 +1,137 @@
+{
+  "created_at": "2026-05-22T00:00:00Z",
+  "pages": [
+    {
+      "url": "https://quotes.toscrape.com/exact",
+      "title": "Good friends",
+      "text": "Good friends stay close.",
+      "tokens": ["good", "friend", "stay", "close"],
+      "phrase_tokens": ["good", "friend", "stay", "close"],
+      "term_positions": {
+        "good": [0],
+        "friend": [1],
+        "stay": [2],
+        "close": [3]
+      }
+    },
+    {
+      "url": "https://quotes.toscrape.com/proximity",
+      "title": "Good loyal friends",
+      "text": "Good loyal friends gather.",
+      "tokens": ["good", "loyal", "friend", "gather"],
+      "phrase_tokens": ["good", "loyal", "friend", "gather"],
+      "term_positions": {
+        "good": [0],
+        "loyal": [1],
+        "friend": [2],
+        "gather": [3]
+      }
+    },
+    {
+      "url": "https://quotes.toscrape.com/bad",
+      "title": "Bad friends",
+      "text": "Bad enemies are here.",
+      "tokens": ["bad", "enemy", "here"],
+      "phrase_tokens": ["bad", "enemy", "are", "here"],
+      "term_positions": {
+        "bad": [0],
+        "enemy": [1],
+        "here": [2]
+      }
+    },
+    {
+      "url": "https://quotes.toscrape.com/gold",
+      "title": "Gold rules",
+      "text": "Gold glows brightly.",
+      "tokens": ["gold", "glow", "brightly"],
+      "phrase_tokens": ["gold", "glow", "brightly"],
+      "term_positions": {
+        "gold": [0],
+        "glow": [1],
+        "brightly": [2]
+      }
+    }
+  ],
+  "postings": {
+    "good": {
+      "https://quotes.toscrape.com/exact": {
+        "frequency": 1,
+        "positions": [0]
+      },
+      "https://quotes.toscrape.com/proximity": {
+        "frequency": 1,
+        "positions": [0]
+      }
+    },
+    "friend": {
+      "https://quotes.toscrape.com/exact": {
+        "frequency": 1,
+        "positions": [1]
+      },
+      "https://quotes.toscrape.com/proximity": {
+        "frequency": 1,
+        "positions": [2]
+      }
+    },
+    "stay": {
+      "https://quotes.toscrape.com/exact": {
+        "frequency": 1,
+        "positions": [2]
+      }
+    },
+    "close": {
+      "https://quotes.toscrape.com/exact": {
+        "frequency": 1,
+        "positions": [3]
+      }
+    },
+    "loyal": {
+      "https://quotes.toscrape.com/proximity": {
+        "frequency": 1,
+        "positions": [1]
+      }
+    },
+    "gather": {
+      "https://quotes.toscrape.com/proximity": {
+        "frequency": 1,
+        "positions": [3]
+      }
+    },
+    "bad": {
+      "https://quotes.toscrape.com/bad": {
+        "frequency": 1,
+        "positions": [0]
+      }
+    },
+    "enemy": {
+      "https://quotes.toscrape.com/bad": {
+        "frequency": 1,
+        "positions": [1]
+      }
+    },
+    "here": {
+      "https://quotes.toscrape.com/bad": {
+        "frequency": 1,
+        "positions": [2]
+      }
+    },
+    "gold": {
+      "https://quotes.toscrape.com/gold": {
+        "frequency": 1,
+        "positions": [0]
+      }
+    },
+    "glow": {
+      "https://quotes.toscrape.com/gold": {
+        "frequency": 1,
+        "positions": [1]
+      }
+    },
+    "brightly": {
+      "https://quotes.toscrape.com/gold": {
+        "frequency": 1,
+        "positions": [2]
+      }
+    }
+  }
+}

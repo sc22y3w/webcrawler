@@ -31,19 +31,51 @@ python -m src.main
 
 This only works after you have run `build` at least once.
 
-### Search the saved index
+### Find in the saved index
 
-After loading the index, launch the CLI and type `search` to search the loaded index:
+After loading the index, launch the CLI and type `find <query>` to search the loaded index:
 
 ```bash
 python -m src.main
 ```
 
-Then enter your query when prompted.
+For example:
+
+```bash
+find good friends
+```
+
+For advanced queries, the CLI also supports ranked search:
+
+```bash
+find --rank tfidf "good friends"~1 AND good NOT bad
+```
+
+The `suggest <prefix>` command prints simple query completions based on indexed terms.
 
 ### Notes
 
 - Search is case-insensitive.
 - The crawler respects a 6-second politeness window between successive requests.
 - Search results are grouped by relevance, with exact phrase matches shown before broader term matches.
+- Ranked search mode uses a lightweight TF-IDF implementation with phrase boosts and supports boolean operators and proximity queries.
+
+### Design Notes
+
+See [docs/SEARCH_DESIGN.md](docs/SEARCH_DESIGN.md) for query semantics and complexity notes.
+See [RESEARCH.md](RESEARCH.md) for bibliography, workflow guidance, and demo notes.
+
+### Validation
+
+Run the test suite with:
+
+```bash
+PYTHONPATH=. pytest -q
+```
+
+Run the benchmark harness with:
+
+```bash
+PYTHONPATH=. python benchmarks/run_benchmarks.py
+```
 

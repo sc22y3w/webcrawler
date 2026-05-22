@@ -1,0 +1,40 @@
+name: Benchmarks
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  run-benchmarks:
+    name: Run benchmarks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run unit tests
+        run: |
+          export PYTHONPATH=.
+          pytest -q
+
+      - name: Run benchmarks (synthetic small)
+        run: |
+          export PYTHONPATH=.
+          python benchmarks/run_benchmarks.py --synthetic 200 --iterations 50 --index-runs 3
+
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results
+          path: benchmarks/results.json
