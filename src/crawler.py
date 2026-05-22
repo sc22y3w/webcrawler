@@ -13,6 +13,7 @@ from bs4 import BeautifulSoup
 
 DEFAULT_START_URL = "https://quotes.toscrape.com/"
 DEFAULT_POLITENESS_WINDOW = 6.0
+MIN_POLITENESS_WINDOW = 6.0
 
 
 @dataclass(slots=True)
@@ -58,6 +59,7 @@ def crawl(
     session: requests.Session | None = None,
     progress_callback: Callable[[int, int | None, str], None] | None = None,
 ) -> list[CrawledPage]:
+    politeness_window = max(MIN_POLITENESS_WINDOW, politeness_window)
     session = session or requests.Session()
     host = urlparse(start_url).netloc
     queue: deque[str] = deque([normalize_url(start_url)])

@@ -6,7 +6,7 @@ import shlex
 from typing import Any
 from pathlib import Path
 
-from src.crawler import DEFAULT_START_URL, crawl
+from src.crawler import DEFAULT_START_URL, DEFAULT_POLITENESS_WINDOW, crawl
 from src.indexer import index_pages, load_index, save_index, tokenize
 from src.search import flatten_results, ranked_search, search, suggest_queries
 
@@ -153,7 +153,7 @@ def interactive_cli() -> None:
                     start_url=DEFAULT_START_URL,
                     output=DEFAULT_OUTPUT_PATH,
                     max_pages=50,
-                    politeness_window=6.0,
+                    politeness_window=DEFAULT_POLITENESS_WINDOW,
                 )
             )
             continue
@@ -253,7 +253,7 @@ def build_parser() -> argparse.ArgumentParser:
     build_parser.add_argument("--start-url", default=DEFAULT_START_URL)
     build_parser.add_argument("--output", default=DEFAULT_OUTPUT_PATH)
     build_parser.add_argument("--max-pages", type=int, default=50)
-    build_parser.add_argument("--politeness-window", type=float, default=6.0)
+    build_parser.add_argument("--politeness-window", type=float, default=DEFAULT_POLITENESS_WINDOW)
     build_parser.set_defaults(func=build_command)
 
     find_parser = subparsers.add_parser("find", help="Find pages matching a query in a saved index.")
