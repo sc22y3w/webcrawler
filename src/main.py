@@ -53,11 +53,19 @@ def search_command(args: argparse.Namespace) -> list[str]:
     return ordered_urls
 
 
+def load_command(args: argparse.Namespace) -> dict:
+    index = load_index(args.index)
+    page_count = len(index.get("pages", []))
+    print(f"Loaded index with {page_count} pages from {args.index}")
+    return index
+
+
 def interactive_cli() -> None:
     print("Webcrawler CLI")
+    loaded_index: dict | None = None
     while True:
         try:
-            command = input("Command (build/search/quit): ").strip().lower()
+            command = input("Command (build/load/search/quit): ").strip().lower()
         except KeyboardInterrupt:
             print()
             return
@@ -73,18 +81,29 @@ def interactive_cli() -> None:
                 )
             )
             continue
+        if command == "load":
+            try:
+                loaded_index = load_command(argparse.Namespace(index=DEFAULT_OUTPUT_PATH))
+            except FileNotFoundError:
+                print(f"No index found at {DEFAULT_OUTPUT_PATH}. Run build first.")
+            continue
         if command == "search":
             try:
                 query = input("Search query: ").strip()
             except KeyboardInterrupt:
                 print()
                 continue
-            search_command(
-                argparse.Namespace(
-                    index=DEFAULT_OUTPUT_PATH,
-                    query=query,
-                )
-            )
+            if loaded_index is None:
+                try:
+                    loaded_index = load_index(DEFAULT_OUTPUT_PATH)
+                except FileNotFoundError:
+                    print(f"No index found at {DEFAULT_OUTPUT_PATH}. Run build or load first.")
+                    continue
+            groups = search(loaded_index, query)
+            ordered_urls = flatten_results(groups)
+            for group in groups:
+                print(f"{group['label']}: {', '.join(group['pages'])}")
+            print(f"Matched {len(ordered_urls)} pages.")
             continue
         print("Please enter build, search, or quit.")
 
@@ -104,6 +123,10 @@ def build_parser() -> argparse.ArgumentParser:
     search_parser.add_argument("--index", default=DEFAULT_OUTPUT_PATH)
     search_parser.add_argument("query")
     search_parser.set_defaults(func=search_command)
+
+    load_parser = subparsers.add_parser("load", help="Load a saved index.")
+    load_parser.add_argument("--index", default=DEFAULT_OUTPUT_PATH)
+    load_parser.set_defaults(func=load_command)
 
     return parser
 

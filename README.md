@@ -21,9 +21,19 @@ python -m src.main
 The CLI uses the built-in crawl settings and writes the index to `data/index.json`.
 When the crawl finishes, it prints a message saying the site was scraped and where the index was saved.
 
+### Load the index
+
+Launch the CLI, then type `load` to load the saved index from `data/index.json`:
+
+```bash
+python -m src.main
+```
+
+This only works after you have run `build` at least once.
+
 ### Search the saved index
 
-After building the index, launch the CLI and type `search` to search the saved index:
+After loading the index, launch the CLI and type `search` to search the loaded index:
 
 ```bash
 python -m src.main
